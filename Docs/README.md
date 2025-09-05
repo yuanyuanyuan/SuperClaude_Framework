@@ -4,6 +4,10 @@
 
 **SuperClaude is a Context Framework for Claude Code** - it installs behavioral instruction files that Claude Code reads to enhance its capabilities.
 
+> 📋 **Need Complete Project Overview?** → [**Complete Project Index**](../PROJECT_INDEX.md)  
+> ⚡ **Looking for Quick Navigation?** → [**Quick Navigation Guide**](../QUICK_NAVIGATION.md)  
+> 🔗 **Want Cross References?** → [**Cross Reference System**](../CROSS_REFERENCES.md)
+
 ### How It Works
 1. **Installation**: Python CLI installs context files to `~/.claude/`
 2. **Commands**: Type `/sc:analyze` → Claude Code reads `analyze.md` instruction file
