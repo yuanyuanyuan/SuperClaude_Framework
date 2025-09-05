@@ -7,7 +7,7 @@ import sys
 from typing import Dict, List, Tuple, Optional, Any
 from pathlib import Path
 
-from ..base.component import Component
+from ..core.base import Component
 from ..utils.ui import display_info, display_warning
 from setup import __version__
 
@@ -49,13 +49,14 @@ class MCPComponent(Component):
             "serena": {
                 "name": "serena",
                 "description": "Semantic code analysis and intelligent editing",
-                "npm_package": "@superclaude/serena-mcp",
+                "install_method": "uv",
+                "install_command": "uvx --from git+https://github.com/oraios/serena serena-mcp-server",
                 "required": False
             },
             "morphllm": {
                 "name": "morphllm-fast-apply",
                 "description": "Fast Apply capability for context-aware code modifications",
-                "npm_package": "@superclaude/morphllm-fast-apply",
+                "npm_package": "@morph-llm/morph-fast-apply",
                 "required": False,
                 "api_key_env": "MORPH_API_KEY",
                 "api_key_description": "Morph API key for Fast Apply"
@@ -146,7 +147,7 @@ class MCPComponent(Component):
         return {
             "components": {
                 "mcp": {
-                    "version": "3.0.0",
+                    "version": __version__,
                     "installed": True,
                     "servers_count": len(self.mcp_servers)
                 }
@@ -158,6 +159,69 @@ class MCPComponent(Component):
             }
         }
     
+    def _install_uv_mcp_server(self, server_info: Dict[str, Any], config: Dict[str, Any]) -> bool:
+        """Install a single MCP server using uv"""
+        server_name = server_info["name"]
+        install_command = server_info.get("install_command")
+
+        if not install_command:
+            self.logger.error(f"No install_command found for uv-based server {server_name}")
+            return False
+
+        try:
+            self.logger.info(f"Installing MCP server using uv: {server_name}")
+
+            if self._check_mcp_server_installed(server_name):
+                self.logger.info(f"MCP server {server_name} already installed")
+                return True
+
+            if config.get("dry_run"):
+                self.logger.info(f"Would install MCP server (user scope): {install_command}")
+                return True
+
+            self.logger.debug(f"Running: {install_command}")
+
+            result = subprocess.run(
+                install_command.split(),
+                capture_output=True,
+                text=True,
+                timeout=300,
+                shell=(sys.platform == "win32")
+            )
+
+            if result.returncode == 0:
+                self.logger.success(f"Successfully installed MCP server (user scope): {server_name}")
+                run_command = install_command
+
+                self.logger.info(f"Registering {server_name} with Claude CLI. Run command: {run_command}")
+
+                reg_result = subprocess.run(
+                    ["claude", "mcp", "add", "-s", "user", "--", server_name] + run_command.split(),
+                    capture_output=True,
+                    text=True,
+                    timeout=120,
+                    shell=(sys.platform == "win32")
+                )
+
+                if reg_result.returncode == 0:
+                    self.logger.success(f"Successfully registered {server_name} with Claude CLI.")
+                    return True
+                else:
+                    error_msg = reg_result.stderr.strip() if reg_result.stderr else "Unknown error"
+                    self.logger.error(f"Failed to register MCP server {server_name} with Claude CLI: {error_msg}")
+                    return False
+            else:
+                error_msg = result.stderr.strip() if result.stderr else "Unknown error"
+                self.logger.error(f"Failed to install MCP server {server_name} using uv: {error_msg}\n{result.stdout}")
+                return False
+
+        except subprocess.TimeoutExpired:
+            self.logger.error(f"Timeout installing MCP server {server_name} using uv")
+            return False
+        except Exception as e:
+            self.logger.error(f"Error installing MCP server {server_name} using uv: {e}")
+            return False
+
     def _check_mcp_server_installed(self, server_name: str) -> bool:
         """Check if MCP server is already installed"""
         try:
@@ -165,7 +229,7 @@ class MCPComponent(Component):
                 ["claude", "mcp", "list"], 
                 capture_output=True, 
                 text=True, 
-                timeout=15,
+                timeout=30,
                 shell=(sys.platform == "win32")
             )
             
@@ -183,8 +247,15 @@ class MCPComponent(Component):
     
     def _install_mcp_server(self, server_info: Dict[str, Any], config: Dict[str, Any]) -> bool:
         """Install a single MCP server"""
+        if server_info.get("install_method") == "uv":
+            return self._install_uv_mcp_server(server_info, config)
+
         server_name = server_info["name"]
-        npm_package = server_info["npm_package"]
+        npm_package = server_info.get("npm_package")
+
+        if not npm_package:
+            self.logger.error(f"No npm_package found for server {server_name}")
+            return False
         
         command = "npx"
         
@@ -342,7 +413,7 @@ class MCPComponent(Component):
 
             # Add component registration to metadata
             self.settings_manager.add_component_registration("mcp", {
-                "version": "3.0.0",
+                "version": __version__,
                 "category": "integration",
                 "servers_count": len(self.mcp_servers)
             })
@@ -471,7 +542,7 @@ class MCPComponent(Component):
                 ["claude", "mcp", "list"],
                 capture_output=True,
                 text=True,
-                timeout=15,
+                timeout=30,
                 shell=(sys.platform == "win32")
             )
             
