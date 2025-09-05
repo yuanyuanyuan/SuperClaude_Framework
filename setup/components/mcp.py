@@ -45,7 +45,22 @@ class MCPComponent(Component):
                 "description": "Cross-browser E2E testing and automation",
                 "npm_package": "@playwright/mcp@latest",
                 "required": False
+            },
+            "serena": {
+                "name": "serena",
+                "description": "Semantic code analysis and intelligent editing",
+                "npm_package": "@superclaude/serena-mcp",
+                "required": False
+            },
+            "morphllm": {
+                "name": "morphllm-fast-apply",
+                "description": "Fast Apply capability for context-aware code modifications",
+                "npm_package": "@superclaude/morphllm-fast-apply",
+                "required": False,
+                "api_key_env": "MORPH_API_KEY",
+                "api_key_description": "Morph API key for Fast Apply"
             }
+
         }
     
     def get_metadata(self) -> Dict[str, str]:
